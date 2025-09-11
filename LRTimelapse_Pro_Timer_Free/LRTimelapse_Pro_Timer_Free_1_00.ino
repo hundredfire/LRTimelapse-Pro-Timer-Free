@@ -4,11 +4,11 @@
   http://gwegner.de
   http://lrtimelapse.com
   https://github.com/gwegner/LRTimelapse-Pro-Timer-Free
- 
+
   Version 1.14   Bug fixing display delay time > 9:06:07
   Version 1.13   ease in/out Interval ramping implemeted
 
-  Version 1.12   easy entering of Exposure Time 
+  Version 1.12   easy entering of Exposure Time
                  speed up entering of interval and No of shots
                  min autofocus time set to 0.1 will solve problems with several cameras
                  Code optimization
@@ -17,11 +17,11 @@
   Version 1.10   Final Version
                  Some cosmetic improvements in Screens
                  Bug in setup menu fixed
-                 CAPTION1 Screen "TLC Edition " added 
+                 CAPTION1 Screen "TLC Edition " added
                  "Pre Focus Time" remamed in "Autofocus Time"
   Version 1.04B  BETA Version
                  Changed pins for option DPH now Cam 2 shoot = Pin 3 Focus = pin 2
-                 some improvements in Bulb Exposure running screen an delay down count screen 
+                 some improvements in Bulb Exposure running screen an delay down count screen
   Version 1.03B  BETA Version
                  Delay Exposure in Event Single Exposure extended to 400 msec
                  Auto Display off time in setup menu adjustable
@@ -29,7 +29,7 @@
                  Max autofocustime extended to 1.5 sec. This value is also used at the Cam wake up function!!
                  dont show remaining Time in event TL runningscreen
   Version 1.02B  BETA Version
-                 Sensor control for rising and falling edge implemented 
+                 Sensor control for rising and falling edge implemented
                  Exposure delay 0 - 400 msec in Sigle exposure mode
                  Sensor triggered Exposure in Single Exposure Mode
                  optimize shoot and focus port control
@@ -42,13 +42,13 @@
                  changed menu structure
   Version 0.93/4 BETA Version
                  HV Sensor control implemented >> Event triggered Timelapse
-                 HV left Key in Setup go's to last screen of setup 
+                 HV left Key in Setup go's to last screen of setup
   Version 0.93/3 BETA Version
                  HV Adjust No of shots in running screen implemented
   Version 0.93/2 BETA Version
                  HV Bug in interval screen in Setup fixed
                  HV Bug focus handling in stop shooting fixed
-                 HV Camera wake up at adjustable interval length implemented, screen in Setup 
+                 HV Camera wake up at adjustable interval length implemented, screen in Setup
   Version 0.93/1 BETA Version
                  HV pinout of camera2 changed: Focus is now SCL, was P2, Shot is now SDA, was P3
                  HV Interval up to 60 min and easy entering of long interval implemented
@@ -86,7 +86,7 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);	//Pin assignments for SainSmart LCD Keypad 
 
 
 #define sensor     // enable event triggerd timelapse
-//#define DPH      // change pins for Cam 2 if an 3D printed housing is used and connections are made on the display 
+//#define DPH      // change pins for Cam 2 if an 3D printed housing is used and connections are made on the display
 
 #ifdef sensor
 const byte sensor_onL = 2;
@@ -292,7 +292,7 @@ boolean backLight = HIGH;				      // The current settings for the backlight
 
 const byte EaseRampingOff =0;
 const byte EaseRampingOn  =1;
-const byte EaseRampingUp  =2; 
+const byte EaseRampingUp  =2;
 const byte EaseRampingDn  =3;
 
 byte EaseRamping = EaseRampingOff;
@@ -336,6 +336,7 @@ const int SCR_DELAY_TIME       = 19;
 const int SCR_DELAY_COUNT      = 20;
 const int SCR_SINGLE           = 11;
 const int SCR_EASE_IO          = 30;
+const int SCR_IR_MODE          = 31;
 
 const int MODE_M      = 0;
 const int MODE_BULB   = 1;
@@ -346,6 +347,8 @@ const int MODE_SINGLE = 3;
 int currentMenu = SCR_MODE;		// the currently selected menu
 int settingsSel = 1;					// the currently selected settings option
 int mode = MODE_M;            // mode: M or Bulb
+byte irRemoteMode = off;      // off, on for IR Remote bulb mode
+unsigned long irCloseShutterAt = 0; // time to send the closing pulse for IR remote
 
 // K.H. LCD dimming
 const int cMinLevel     = 0;  // Min. Background Brightness Levels
@@ -409,7 +412,7 @@ void setup() {
 #endif
 
   digitalWrite(BACK_LIGHT, HIGH);    // Turn backlight on.
-// inititialize LCD 
+// inititialize LCD
   lcd.begin(16, 2);
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -475,7 +478,7 @@ void setup() {
   TCCR2B = 0;
   TCNT2  = T2RELOAD;                    // Timer 1msec (1000Hz)
   TCCR2B = 0x5; //Prescaler = 128
-  TIMSK2|= (1 << TOIE1);              // activate Timer Overflow Interrupt 
+  TIMSK2|= (1 << TOIE1);              // activate Timer Overflow Interrupt
 
   interrupts();                        // all Interrupts enable
 
@@ -490,21 +493,21 @@ void setup() {
    The main loop
 */
 void loop() {
-  if (millis() > lastKeyCheckTime + keySampleRate) 
+  if (millis() > lastKeyCheckTime + keySampleRate)
   {
     lastKeyCheckTime = millis();
     localKey = keypad.getKey();
       if (localKey == 0 ) {
-        keylongpress = keyspeed1;            // no key is pressed 
+        keylongpress = keyspeed1;            // no key is pressed
         klpTimer = 0;
       }
- 
+
     if (localKey != lastKeyPressed) {
 
       processKey();
       keypad.RepeatRate = keyRepeatRateSlow;
     } else {
-    
+
       // key value has not changed, key is being held down, has it been long enough?
       // (but don't process localKey = 0 = no key pressed)
 
@@ -523,29 +526,29 @@ void loop() {
       printScreen();  // update screen in case of Cam2 Config in order to display Sensor Status
     }
 
-    if ((delayMS_Trigger == 1)and (delayMS_CD==0))    // Sensor signal has changed -> process key 
+    if ((delayMS_Trigger == 1)and (delayMS_CD==0))    // Sensor signal has changed -> process key
     {
       localKey = KEY_SENSOR;
       delayMS_Trigger =0;
-      processKey();     
+      processKey();
     }
 #endif   //sensor
 
-    if ( currentMenu == SCR_RUNNING ) 
+    if ( currentMenu == SCR_RUNNING )
     {
      printScreen();	// update running screen in any case
     }
-    
-    if ( mode == MODE_BULB ) 
+
+    if ( mode == MODE_BULB )
     {
      printScreen();  // update running screen in any case
     }
 
-    if ( currentMenu == SCR_SINGLE  ) 
+    if ( currentMenu == SCR_SINGLE  )
     {
       possiblyEndLongExposure();
     }
-    if ( currentMenu == SCR_DELAY_COUNT ) 
+    if ( currentMenu == SCR_DELAY_COUNT )
     {
       possiblyEndLongDealy();
       printScreen();  // update running screen in any case
@@ -554,7 +557,7 @@ void loop() {
 
   if ((autofocustime == 0) and (focus == 1))    // end of focus time release Camaera
   {
-  #ifdef sensor   
+  #ifdef sensor
    if (((sensorConf == sensor_onL) && (digitalRead(Cam2_focus) == 1))or ((sensorConf == sensor_onH) && (digitalRead(Cam2_focus) == 0))and (currentMenu!=SCR_SINGLE))
    {
     // switch of focus of cam 1 if sensor = low: Happened if sensor goes low during focus time
@@ -565,7 +568,7 @@ void loop() {
     lcd.print(" ");                          // clear Focus symbol
     }
    }
-#endif    
+#endif
     focus = 0;
     printScreen();  // update running screen in any case
     releaseCamera_1();   //release camera after focus
@@ -588,11 +591,11 @@ void loop() {
       #else
        Pin_Cam2_shoot(off);
        Pin_Cam2_focus(off);
-      #endif 
+      #endif
 
     }
   }
-  if (( currentMenu == SCR_RUNNING ) or ( currentMenu == SCR_SINGLE )) 
+  if (( currentMenu == SCR_RUNNING ) or ( currentMenu == SCR_SINGLE ))
   {
 
     if ((exposureTimeDisp == 0) and (exposureDisp == 1))      // End of exposure indicator
@@ -603,16 +606,25 @@ void loop() {
     }
   }
 
+  if (irCloseShutterAt > 0 && millis() >= irCloseShutterAt) {
+    // Send the closing pulse for IR mode
+    Pin_Cam1_shoot(on);
+    exposureTime = 100; // 100ms pulse
+    cam_Release = shooting;
+    irCloseShutterAt = 0; // Reset the timer
+    bulbReleasedAt = 0;
+  }
+
   if ( isRunning ) // release camera, do Ramping if running
-  {	
+  {
     running();
   }
 
   if (displayRS < displayRSoff)
   {
   if (displayOff == 0) // Display timer
-  {            
-    if (backLight == 1) 
+  {
+    if (backLight == 1)
     {
       backLight = 0;
 
@@ -628,27 +640,27 @@ void loop() {
 /*
   K.H: dimming LCD BAckground light
 */
-void DimLCD( byte startval, byte endval, byte stepdelay) 
+void DimLCD( byte startval, byte endval, byte stepdelay)
 {
-  if (endval < startval) 
+  if (endval < startval)
   {
-    for ( int bl = startval; bl >= endval; bl--) 
+    for ( int bl = startval; bl >= endval; bl--)
     {
       analogWrite(BACK_LIGHT, bl);    // dimming backlight off.
       delay(stepdelay);
-      if (localKey != lastKeyPressed) 
+      if (localKey != lastKeyPressed)
       {
         break;
       }
     }
   }
-  else 
+  else
   {
-    for ( int bl = startval; bl <= endval; bl++) 
+    for ( int bl = startval; bl <= endval; bl++)
     {
       analogWrite(BACK_LIGHT, bl);    // dimming backlight off.
       delay(stepdelay);
-      if (localKey != lastKeyPressed) 
+      if (localKey != lastKeyPressed)
       {
         break;
       }
@@ -661,24 +673,24 @@ void DimLCD( byte startval, byte endval, byte stepdelay)
 */
 void changeBackLightBrightness( char AMode) {   //U=up, D=douwn, R=rolling
 
-  if ((AMode == 'U') || (AMode == 'D')) 
+  if ((AMode == 'U') || (AMode == 'D'))
   {
     act_BackLightDir = AMode;
   }
-  if (act_BackLightDir == 'D') 
+  if (act_BackLightDir == 'D')
   {
     act_BackLightLevel --;
   }
-  else 
+  else
   {
     act_BackLightLevel ++;
   }
 
-  if (act_BackLightLevel < cMinLevel) 
+  if (act_BackLightLevel < cMinLevel)
   {
     act_BackLightLevel = cMinLevel;
   }
-  if (act_BackLightLevel > cMaxLevel) 
+  if (act_BackLightLevel > cMaxLevel)
   {
     act_BackLightLevel = cMaxLevel;
   }
@@ -688,7 +700,7 @@ void changeBackLightBrightness( char AMode) {   //U=up, D=douwn, R=rolling
 /**
   K.H. calc PWM-Value for background display brightness
 */
-byte act_BackLightBrightness() 
+byte act_BackLightBrightness()
 {
   return constrain (act_BackLightLevel * (255 / cMaxLevel), 12, 255);
 }
@@ -696,10 +708,10 @@ byte act_BackLightBrightness()
 /**
    K.H. save actual level in EPROM
 */
-void save_Params() 
+void save_Params()
 {
   String str;
-  if (not isRunning) 
+  if (not isRunning)
   {
     boolean save = false;
     act_BackLightLevel = constrain(act_BackLightLevel, cMinLevel, cMaxLevel);
@@ -734,10 +746,10 @@ void save_Params()
       save = true;
     };
 
-    if (save) 
+    if (save)
     {
 
-      if (not EEProm.ParamsWrite()) 
+      if (not EEProm.ParamsWrite())
       {
         lcd.setCursor(0, 0); lcd.print(F("PROBLEM SAVING  "));
         lcd.setCursor(0, 1); lcd.print(F("PARAMS TO EEPROM"));
@@ -757,7 +769,7 @@ void processKey() {
   if ( localKey == SELECT ) {
     if (lastKeyPressed == SELECT) {
     }
-    else 
+    else
     {
       backLight = !backLight;
       if (backLight) {
@@ -765,7 +777,7 @@ void processKey() {
         //        digitalWrite(BACK_LIGHT, HIGH); // Turn backlight on.
         displayOff = displayRS;  //reload display off timer
       }
-      else 
+      else
       {
         digitalWrite(BACK_LIGHT, LOW); // Turn backlight off.
         displayOff = 500;
@@ -866,7 +878,7 @@ int bTdec = 0;
               if (releaseTime < 0) {
                 releaseTime = releaseTime + bTdec;
               }
-          
+
 
           if ( releaseTime < RELEASE_TIME_DEFAULT ) { // if it's too short after decrementing, set to the default release time.
             releaseTime = RELEASE_TIME_DEFAULT;
@@ -878,59 +890,59 @@ int bTdec = 0;
         }
       }
 
-      if ( localKey == LEFT ) 
+      if ( localKey == LEFT )
 #ifdef sensor
       {
-        if (releaseTime < 1) 
+        if (releaseTime < 1)
         {
          if (sensorConf > sensor_off)
-         { 
+         {
           currentMenu = SCR_DELAY_MS;
- 
+
          }
          else
          {
          currentMenu = SCR_DELAY_TIME;
          delayTimeCursor = delayTimeCursorNO;
          }
-        } 
+        }
         else
         {
-          switch (bulbTimeCursor) 
+          switch (bulbTimeCursor)
           {
             case bulbTimeCursorS:
               bulbTimeCursor = bulbTimeCursorM;
               break;
-  
+
             case bulbTimeCursorM:
               bulbTimeCursor = bulbTimeCursorH;
               break;
-  
+
             case bulbTimeCursorH:
              if (sensorConf > sensor_off)
-             { 
+             {
               currentMenu = SCR_DELAY_MS;
-     
+
              }
              else
              {
               currentMenu = SCR_DELAY_TIME;
               delayTimeCursor = delayTimeCursorNO;
-             } 
+             }
                break;
-  
+
             case bulbTimeCursorRdy:
               if (( bulbReleasedAt == 0 )and (focus == 0)) // if not running, go to previous screen
-              { 
+              {
                 bulbTimeCursor = bulbTimeCursorS;
-              } 
+              }
               else // if running, go to confirm screen
-              {  
+              {
                currentMenu = SCR_CONFIRM_END_BULB;
               }
               break;
           }
-       } 
+       }
       }
 
 #else // sensor
@@ -942,39 +954,39 @@ int bTdec = 0;
         }
         else
         {
-          switch (bulbTimeCursor) 
+          switch (bulbTimeCursor)
           {
             case bulbTimeCursorS:
               bulbTimeCursor = bulbTimeCursorM;
               break;
-  
+
             case bulbTimeCursorM:
               bulbTimeCursor = bulbTimeCursorH;
               break;
-  
+
             case bulbTimeCursorH:
               currentMenu = SCR_DELAY_TIME;
               delayTimeCursor = delayTimeCursorNO;
                break;
-  
+
             case bulbTimeCursorRdy:
               if (( bulbReleasedAt == 0 )and (focus == 0)) // if not running, go to previous screen
-              { 
+              {
                 bulbTimeCursor = bulbTimeCursorS;
-              } 
+              }
               else // if running, go to confirm screen
-              {  
+              {
                currentMenu = SCR_CONFIRM_END_BULB;
               }
               break;
           }
-       } 
+       }
       }
 #endif      // sensor
- 
-      if ( localKey == RIGHT ) 
+
+      if ( localKey == RIGHT )
       {
-        switch (bulbTimeCursor) 
+        switch (bulbTimeCursor)
         {
           case bulbTimeCursorS:
             bulbTimeCursor = bulbTimeCursorRdy;
@@ -990,20 +1002,20 @@ int bTdec = 0;
 
           case bulbTimeCursorRdy:
             if ( bulbReleasedAt == 0 ) // if not running, go to main screen
-            { 
+            {
 #ifdef sensor
             if (sensorConf == sensor_off)
-            { 
-#endif //sensor              
+            {
+#endif //sensor
                delayTimeDC = delayTime * 1000;
-               if (delayTimeDC > 0) 
+               if (delayTimeDC > 0)
                {
                 currentMenu = SCR_DELAY_COUNT;
-                previousMillis = millis();                            
+                previousMillis = millis();
                }
-               else 
+               else
                {
-//                if (decoupleTime > 0) 
+//                if (decoupleTime > 0)
 //                {
 //                  lcd.clear();
 //                  lcd.setCursor(0, 0);
@@ -1011,71 +1023,71 @@ int bTdec = 0;
 //                  delay( decoupleTime * 1000 );
 //                }
                releaseCamera();
-               } 
+               }
 #ifdef sensor
             }
             else
             {
             releaseCamera();  // in case of event single exposure releas cam without delay or decoupling
             }
-#endif  /sensor            
+#endif  /sensor
            }
         }
       }
 #ifdef sensor
-      if ( localKey == KEY_SENSOR) 
+      if ( localKey == KEY_SENSOR)
       {
        if ( bulbTimeCursor == bulbTimeCursorRdy)
-       {  
+       {
         if (  cam_Release != shooting)
         {
-              releaseCamera(); 
-        }      
-       }             
+              releaseCamera();
+        }
+       }
       }
 #endif   // sensor
-   
+
       break;
 
 #ifdef sensor
     case SCR_DELAY_MS:
-      if ( localKey == RIGHT ) 
+      if ( localKey == RIGHT )
       {
         currentMenu = SCR_SINGLE;
        lcd.setCursor(7, 1);
        lcd.print("    ");
-        
+
       }
-      else if ( localKey == LEFT ) 
+      else if ( localKey == LEFT )
       {
         currentMenu = SCR_MODE;
       }
-      else if ( localKey == DOWN )  
+      else if ( localKey == DOWN )
       {
         if (keylongpress > keyspeed1)
         {
         delayMS -= 10;
         }
-        else  
+        else
         {
         delayMS -= 1;
         }
-        if (delayMS < delayMS_Min) 
+        if (delayMS < delayMS_Min)
         {
           delayMS = delayMS_Min;
         }
       }
-      else if ( localKey == UP )  
+      else if ( localKey == UP )
       {
         if (keylongpress > keyspeed1)
         {
         delayMS += 10;
         }
-        else  
+        else
         {
         delayMS += 1;
         }
-        if (delayMS > delayMS_Max) 
+        if (delayMS > delayMS_Max)
         {
           delayMS = delayMS_Max;
         }
@@ -1095,7 +1107,7 @@ int dTinc = 0;
             delayTimeCursor = delayTimeCursorS;
 //       if (delayTime == 0){
 //            delayTime = 1; //(float)((float)(delayTime + 1));
-//       }     
+//       }
 
 //            delayTime = (float)((float)(delayTime + 1));
 //            if (delayTime > delayTimeMax) {
@@ -1119,7 +1131,7 @@ int dTinc = 0;
 //              delayTime = delayTime - 60;
 //            }
             break;
-            
+
          case delayTimeCursorS:
             dTinc = 1;
 
@@ -1134,7 +1146,7 @@ int dTinc = 0;
           if (delayTime > delayTimeMax) {
             delayTime = delayTime - dTinc;
           }
-         
+
       }
       if ( localKey == DOWN ) {
 int dTdec = 0;
@@ -1192,7 +1204,7 @@ int dTdec = 0;
             if (delayTime == 0) {
               delayTimeCursor = delayTimeCursorNO;
             }
-        
+
       }
 
       if ( localKey == RIGHT ) {
@@ -1211,7 +1223,7 @@ int dTdec = 0;
            else
            {
             currentMenu = SCR_INTERVAL;
-           }  
+           }
             delayTimeDC = delayTime * 1000;
             intervalCursor = intervalCursorNO;
           break;
@@ -1223,7 +1235,7 @@ int dTdec = 0;
           case delayTimeCursorM:
             delayTimeCursor = delayTimeCursorS;
           break;
-          
+
          case delayTimeCursorS:
           if (mode == MODE_SINGLE)
           {
@@ -1236,14 +1248,14 @@ int dTdec = 0;
          else
          {
           currentMenu = SCR_INTERVAL;
-         }  
+         }
           delayTimeDC = delayTime * 1000;
           intervalCursor = intervalCursorNO;
          break;
         }
       }
 
-      if ( localKey == LEFT ) 
+      if ( localKey == LEFT )
       {
 
         switch (delayTimeCursor) {
@@ -1263,12 +1275,12 @@ int dTdec = 0;
           case delayTimeCursorM:
             delayTimeCursor = delayTimeCursorH;
           break;
-          
+
          case delayTimeCursorS:
            delayTimeCursor = delayTimeCursorM;
          break;
         }
-      }  
+      }
      break;
 
     case SCR_DELAY_COUNT:
@@ -1298,7 +1310,7 @@ int dTdec = 0;
             else
             {
               interval = (float)((int)(interval * 10) + 1) / 10; // round to 1 decimal place
-            }  
+            }
             }
             if ( interval >= 10 ) {
               intervalCursor = intervalCursorS;
@@ -1433,22 +1445,26 @@ int dTdec = 0;
 
     case SCR_MODE:
 
-      if ( localKey == RIGHT ) 
+      if ( localKey == RIGHT )
       {
-        if (mode == MODE_SETUP) 
+        if (mode == MODE_BULB)
+        {
+          currentMenu = SCR_IR_MODE;
+        }
+        else if (mode == MODE_SETUP)
         {
           currentMenu = SCR_SU_INTVL;
         }
         else
         {
 #ifdef sensor
-        if ((sensorConf > sensor_off)and(mode == MODE_SINGLE)) 
+        if ((sensorConf > sensor_off)and(mode == MODE_SINGLE))
         {
           currentMenu = SCR_DELAY_MS;
         }
         else
         {
-#endif  // sensor        
+#endif  // sensor
 
           currentMenu = SCR_DELAY_TIME;
           delayTimeCursor = delayTimeCursorNO;
@@ -1456,35 +1472,35 @@ int dTdec = 0;
           imageCount = 0;    // clear image count
 #ifdef sensor
         }
-#endif        
-        if (mode == MODE_SINGLE) 
+#endif
+        if (mode == MODE_SINGLE)
         {
          bulbTimeCursor=bulbTimeCursorRdy;
         }
 
        }
 
-       if (mode == MODE_BULB) 
+       if (mode == MODE_BULB)
        {
-          if ( interval < (MIN_DARK_TIME + 0.1) ) 
+          if ( interval < (MIN_DARK_TIME + 0.1) )
           {
             interval = (MIN_DARK_TIME + 0.1);                 // in MODE_MC min interval = MIN_DARK_TIME + 0.1!!
           }
        }
       }
-      else if ( localKey == LEFT ) 
+      else if ( localKey == LEFT )
       {
         if (mode == MODE_SETUP) {
-        #ifdef sensor  
+        #ifdef sensor
           currentMenu = SCR_SU_SENS;
         #else
         currentMenu = SCR_SU_ADOT;
-        #endif  
+        #endif
         }
       }
-      else if ( localKey == UP )  
+      else if ( localKey == UP )
       {
-        switch (mode) 
+        switch (mode)
         {
           case MODE_M:
             mode = MODE_BULB;
@@ -1504,9 +1520,9 @@ int dTdec = 0;
         }
       }
 
-      else if ( localKey == DOWN )  
+      else if ( localKey == DOWN )
       {
-        switch (mode) 
+        switch (mode)
         {
           case MODE_M:
             mode = MODE_SETUP;
@@ -1527,30 +1543,46 @@ int dTdec = 0;
       }
       break;
 
+    case SCR_IR_MODE:
+      if ( localKey == UP || localKey == DOWN ) {
+        if (irRemoteMode == on) {
+          irRemoteMode = off;
+        } else {
+          irRemoteMode = on;
+        }
+      }
+      if ( localKey == LEFT ) {
+        currentMenu = SCR_MODE;
+      }
+      if ( localKey == RIGHT ) {
+        currentMenu = SCR_DELAY_TIME;
+      }
+      break;
+
     case SCR_SU_MDT:
-      if ( localKey == RIGHT ) 
+      if ( localKey == RIGHT )
       {
         currentMenu = SCR_SU_AFT;
         save_Params();
       }
 
-      else if ( localKey == LEFT ) 
+      else if ( localKey == LEFT )
       {
         currentMenu = SCR_SU_INTVL;
         save_Params();
       }
-      else if ( localKey == DOWN )  
+      else if ( localKey == DOWN )
       {
         MIN_DARK_TIME -= 0.1;
-        if (MIN_DARK_TIME < min_MDT) 
+        if (MIN_DARK_TIME < min_MDT)
         {
          MIN_DARK_TIME = min_MDT;
         }
       }
-      else if ( localKey == UP )  
+      else if ( localKey == UP )
       {
         MIN_DARK_TIME += 0.1;
-        if (MIN_DARK_TIME > max_MDT) 
+        if (MIN_DARK_TIME > max_MDT)
         {
           MIN_DARK_TIME = max_MDT;
         }
@@ -1559,27 +1591,27 @@ int dTdec = 0;
       break;
 
 //    case SCR_SU_DCT:
-//      if ( localKey == RIGHT ) 
+//      if ( localKey == RIGHT )
 //      {
 //        currentMenu = SCR_SU_AFT;
 //        save_Params();
 //      }
-//      else if ( localKey == LEFT ) 
+//      else if ( localKey == LEFT )
 //      {
 //        currentMenu = SCR_SU_MDT;
 //        save_Params();
 //      }
-//      else if ( localKey == DOWN )  
+//      else if ( localKey == DOWN )
 //      {
 //        decoupleTime -= 0.1;
 //        if (decoupleTime < min_DCT) {
 //          decoupleTime = min_DCT;
 //        }
 //      }
-//      else if ( localKey == UP )  
+//      else if ( localKey == UP )
 //      {
 //        decoupleTime += 0.1;
-//        if (decoupleTime > max_DCT) 
+//        if (decoupleTime > max_DCT)
 //        {
 //          decoupleTime = max_DCT;
 //        }
@@ -1587,28 +1619,28 @@ int dTdec = 0;
 //      break;
 
     case SCR_SU_AFT:
-      if ( localKey == RIGHT ) 
+      if ( localKey == RIGHT )
       {
         currentMenu = SCR_SU_WAT;
         save_Params();
       }
-      else if ( localKey == LEFT ) 
+      else if ( localKey == LEFT )
       {
         currentMenu = SCR_SU_MDT;
         save_Params();
       }
-      else if ( localKey == DOWN )  
+      else if ( localKey == DOWN )
       {
         AUTO_FOCUS_TIME -= 0.1;
-        if (AUTO_FOCUS_TIME < min_AFT) 
+        if (AUTO_FOCUS_TIME < min_AFT)
         {
           AUTO_FOCUS_TIME = min_AFT;
         }
       }
-      else if ( localKey == UP )  
+      else if ( localKey == UP )
       {
         AUTO_FOCUS_TIME += 0.1;
-        if (AUTO_FOCUS_TIME > max_AFT) 
+        if (AUTO_FOCUS_TIME > max_AFT)
         {
           AUTO_FOCUS_TIME = max_AFT;
         }
@@ -1796,7 +1828,7 @@ int dTdec = 0;
 
     case SCR_SU_DISP:
       if ( localKey == RIGHT ) {
-        
+
         currentMenu = SCR_SU_ADOT;
         save_Params();
       }
@@ -1819,7 +1851,7 @@ int dTdec = 0;
         }
         analogWrite(BACK_LIGHT, act_BackLightBrightness()); // Turn PWM backlight on.
       }
- 
+
       break;
 
     case SCR_SU_ADOT:
@@ -1827,10 +1859,10 @@ int dTdec = 0;
 #ifdef sensor
         currentMenu = SCR_SU_SENS;
         save_Params();
-#else        
+#else
         currentMenu = SCR_MODE;
         save_Params();
-#endif        
+#endif
       }
       else if ( localKey == LEFT ) {
         currentMenu = SCR_SU_DISP;
@@ -1841,24 +1873,24 @@ int dTdec = 0;
         if (displayRS == displayRSoff)
         {
           displayRS = displayRSmax;
-          displayOff = displayRS;   
+          displayOff = displayRS;
         }
         else
         {
           displayRS -= 1000;
         }
-        if (displayRS < displayRSmin) 
+        if (displayRS < displayRSmin)
         {
           displayRS = displayRSmin;
         }
       }
-      
+
       else if ( localKey == UP )  {
         if (displayRS >= displayRSmin)
         {
          displayRS += 1000;
         }
-        if (displayRS > displayRSmax) 
+        if (displayRS > displayRSmax)
         {
           displayRS = displayRSoff;
         }
@@ -1877,24 +1909,24 @@ int dTdec = 0;
 
       else if ( localKey == DOWN )  {
       if (sensorConf == sensor_onL)
-      { 
-      sensorConf = sensor_onH; 
+      {
+      sensorConf = sensor_onH;
       }
       else
       {
-      sensorConf = sensor_off; 
+      sensorConf = sensor_off;
       pinMode(Cam2_shoot, INPUT_PULLUP);          // initialize output pin for camera release internal HW
       }
-       
+
       }
       else if ( localKey == UP )  {
       if (sensorConf == sensor_off)
-      { 
-      sensorConf = sensor_onH; 
+      {
+      sensorConf = sensor_onH;
       }
       else
       {
-      sensorConf = sensor_onL; 
+      sensorConf = sensor_onL;
       }
       pinMode(Cam2_shoot, OUTPUT);          // initialize output pin for power  on sensor
       digitalWrite(Cam2_shoot, HIGH);
@@ -1910,11 +1942,11 @@ int dTdec = 0;
         case keyspeed1:
         maxNoOfShots ++;
         break;
-        
+
         case keyspeed2:
         maxNoOfShots += 10;
         break;
-        
+
         case keyspeed3:
         maxNoOfShots += 100;
         break;
@@ -1942,11 +1974,11 @@ int dTdec = 0;
         case keyspeed1:
         maxNoOfShots --;
         break;
-        
+
         case keyspeed2:
         maxNoOfShots -= 10;
         break;
-        
+
         case keyspeed3:
         if (maxNoOfShots > 1000)
         {
@@ -1961,10 +1993,10 @@ int dTdec = 0;
       if (maxNoOfShots < 0)
       {
         maxNoOfShots = 0;
-      }  
+      }
     }
-        
-        
+
+
 //        if ( maxNoOfShots > 2500 ) {
 //          maxNoOfShots -= 100;
 //        } else if ( maxNoOfShots > 1000 ) {
@@ -1993,8 +2025,8 @@ int dTdec = 0;
           if (maxNoOfShots > 0){
             currentMenu = SCR_EASE_IO;
           }
-          else 
-          { 
+          else
+          {
            if (delayTimeDC > 0) {
               currentMenu = SCR_DELAY_COUNT;
               previousMillis = millis();
@@ -2008,7 +2040,7 @@ int dTdec = 0;
             }
           }
             break;
-            
+
           case MODE_BULB:
             currentMenu = SCR_EXPOSURE; // in Bulb mode ask for exposure
             break;
@@ -2033,11 +2065,11 @@ int dTdec = 0;
           if (releaseTime > 9.9)
           {
            bulbTimeCursor = bulbTimeCursorS;
-          }              
+          }
 
         }
         else
-        { 
+        {
           switch (bulbTimeCursor) {
 
             case bulbTimeCursorRdy:
@@ -2067,13 +2099,13 @@ int dTdec = 0;
                 releaseTime = releaseTime - 3600;
               }
               break;
-          } 
+          }
         }
         if ( releaseTime > interval - MIN_DARK_TIME ) { // no release times longer then (interval-Min_Dark_Time)
           releaseTime = interval - MIN_DARK_TIME;
         }
 
-        
+
       }
 
       if ( localKey == DOWN ) {
@@ -2125,7 +2157,7 @@ int dTdec = 0;
         if ( releaseTime <10) {
          bulbTimeCursor = bulbTimeCursorRdy;
         }
-          
+
         }
 
           if ( releaseTime < RELEASE_TIME_DEFAULT ) { // if it's too short after decrementing, set to the default release time.
@@ -2134,30 +2166,30 @@ int dTdec = 0;
             if (releaseTime < 1) {
               bulbTimeCursor = bulbTimeCursorRdy;
             }
-          }        
+          }
       }
 
       if ( localKey == LEFT ) {
 
-          switch (bulbTimeCursor) 
+          switch (bulbTimeCursor)
           {
             case bulbTimeCursorS:
               bulbTimeCursor = bulbTimeCursorM;
               break;
-  
+
             case bulbTimeCursorM:
               currentMenu = SCR_SHOTS;
               break;
-  
+
             case bulbTimeCursorRdy:
                 bulbTimeCursor = bulbTimeCursorS;
               break;
-          }        
+          }
       }
 
       if ( localKey == RIGHT ) {
 
-        switch (bulbTimeCursor) 
+        switch (bulbTimeCursor)
         {
           case bulbTimeCursorS:
             bulbTimeCursor = bulbTimeCursorRdy;
@@ -2168,16 +2200,16 @@ int dTdec = 0;
             break;
 
           case bulbTimeCursorRdy:
-             
+
                delayTimeDC = delayTime * 1000;
-               if (delayTimeDC > 0) 
+               if (delayTimeDC > 0)
                {
                 currentMenu = SCR_DELAY_COUNT;
-                previousMillis = millis();                            
+                previousMillis = millis();
                }
-               else 
+               else
                {
-//                if (decoupleTime > 0) 
+//                if (decoupleTime > 0)
 //                {
 //                  lcd.clear();
 //                  lcd.setCursor(0, 0);
@@ -2188,7 +2220,7 @@ int dTdec = 0;
                  currentMenu = SCR_RUNNING;   // Start shooting
                  firstShutter();
 
-               } 
+               }
            }
         }
 
@@ -2242,7 +2274,7 @@ int dTdec = 0;
               intervalBeforeEase = interval;
               interval = MIN_DARK_TIME;                                       // set first interval for Ramping
             }
-        
+
         if (delayTimeDC > 0) {
           currentMenu = SCR_DELAY_COUNT;
           previousMillis = millis();
@@ -2252,14 +2284,14 @@ int dTdec = 0;
           currentMenu = SCR_RUNNING;   // Ramping
 
           if (isRunning == 0) {            //
-            
+
             lcd.clear();
             isRunning = 1;
             firstShutter();
           }
         }
       }
-break;      
+break;
 
     case SCR_RUNNING:
 
@@ -2347,11 +2379,11 @@ break;
         currentMenu = SCR_RAMP_TIME;
         lcd.clear();
       }
-      
+
       if ( localKey == RIGHT && settingsSel == 3 ) {
         currentMenu = SCR_NOS_ADJ;
         currentNoOfShots = maxNoOfShots;
-        
+
         lcd.clear();
       }
 
@@ -2477,7 +2509,7 @@ break;
           if ( maxNoOfShots >= 9999 ) { // prevents screwing the ui
             maxNoOfShots = 9999;
           }
-  
+
          }
       }
 
@@ -2493,9 +2525,9 @@ break;
             maxNoOfShots -= 10;
           } else if ( maxNoOfShots > 0) {
             maxNoOfShots -= 1;
-          } 
+          }
          if (maxNoOfShots < currentNoOfShots) {
-         maxNoOfShots = currentNoOfShots;   
+         maxNoOfShots = currentNoOfShots;
          }
         }
       }
@@ -2516,13 +2548,13 @@ break;
 
 
     case SCR_CONFIRM_END_BULB:
-      if ( localKey == LEFT ) 
+      if ( localKey == LEFT )
       { // Really abort
         stopShooting();
         currentMenu = SCR_SINGLE;
         lcd.clear();
       }
-      if ( localKey == RIGHT ) 
+      if ( localKey == RIGHT )
       { // resume
         currentMenu = SCR_SINGLE;
         lcd.clear();
@@ -2533,6 +2565,7 @@ break;
 }
 
 void stopShooting() {
+  irCloseShutterAt = 0;
   isRunning = 0;
   imageCount = 0;
   runningTime = 0;
@@ -2542,7 +2575,7 @@ void stopShooting() {
   // switch off shoot and focus
  Pin_Cam1_shoot(off);
  Pin_Cam1_focus(off);
- 
+
 #ifdef sensor
 if (sensorConf == sensor_off)
 {
@@ -2555,11 +2588,11 @@ if (sensorConf == sensor_off)
 #endif
 }
 
-void firstShutter() 
+void firstShutter()
 {
   if (delayTime == 0)
   {
-//  if (decoupleTime > 0) 
+//  if (decoupleTime > 0)
 //  {
 //    lcd.clear();
 //    lcd.setCursor(0, 0);
@@ -2576,7 +2609,7 @@ void firstShutter()
 
   // do the first release instantly, the subsequent ones will happen in the loop
   releaseCamera();
-//  imageCount++;   
+//  imageCount++;
 }
 
 void printScreen() {
@@ -2631,11 +2664,15 @@ void printScreen() {
     case SCR_NOS_ADJ:
       printChgNofShotsMenu();
       break;
-      
+
     case SCR_EASE_IO:
       printEaseRampMenu();
       break;
-      
+
+    case SCR_IR_MODE:
+      printIrModeMenu();
+      break;
+
     case SCR_DONE:
       printDoneScreen();
       break;
@@ -2750,13 +2787,13 @@ void possiblyRampInterval() {
 void releaseCamera()
 {
 
-#ifdef sensor   
+#ifdef sensor
    if (((sensorConf == sensor_onH) && (digitalRead(Cam2_focus) == 1)or (sensorConf == sensor_onL) && (digitalRead(Cam2_focus) == 0)or (sensorConf == sensor_off)or (currentMenu == SCR_SINGLE)))
-   
+
    {
    //  release cam if cam 2 is defined as sensor andsensor input = high in single exposure mode
-  
-imageCount++;     
+
+imageCount++;
   // switch on focus pin Cam 1
 
  Pin_Cam1_focus(on);
@@ -2767,12 +2804,12 @@ imageCount++;
    {
  Pin_Cam2_focus(on);
    }
-    if (( currentMenu == SCR_RUNNING ) or ( currentMenu == SCR_SINGLE )) 
+    if (( currentMenu == SCR_RUNNING ) or ( currentMenu == SCR_SINGLE ))
     { // display focus indicator on running screen only
       lcd.setCursor(7, 1);
       lcd.write(byte(3));
     }
-  
+
     //  check and set Autofocus time
     if ((CamWakeUptime > 0) and (interval > CamWakeUptime))
     {
@@ -2782,11 +2819,11 @@ imageCount++;
     {
       autofocustime = AUTO_FOCUS_TIME * 1000;
     }
-    focus = 1;   
+    focus = 1;
    }
 #else   // sensor not defined
-  
-imageCount++;     
+
+imageCount++;
   // switch on focus pin Cam 1
 
  Pin_Cam1_focus(on);
@@ -2812,11 +2849,25 @@ imageCount++;
 
 void releaseCamera_1()
 {
+  if (irRemoteMode == on && releaseTime > 1) {
+    Pin_Cam1_shoot(on);
+    exposureTime = 100;
+    cam_Release = shooting;
+    irCloseShutterAt = millis() + (unsigned long)(releaseTime * 1000);
+    if (currentMenu == SCR_RUNNING || currentMenu == SCR_SINGLE) {
+      lcd.setCursor(7, 1);
+      lcd.write(byte(2));
+      exposureDisp = 1;
+    }
+    if (bulbReleasedAt == 0) {
+        bulbReleasedAt = millis();
+    }
+  } else {
+    // Original logic
 #ifdef sensor
    if (((sensorConf == sensor_onH) && (digitalRead(Cam2_focus) == 1))or ((sensorConf == sensor_onL) && (digitalRead(Cam2_focus) == 0))or (sensorConf == sensor_off)or (currentMenu == SCR_SINGLE))
    {
-   // cam release only if sensor is defined and sensor input = high or sensor is not defined or in single exposure mode 
-  
+#endif
   if (releaseTime < 0.2) {
     exposureTimeDisp = releaseTime * 2000;     // for better viewability
   }
@@ -2835,11 +2886,11 @@ void releaseCamera_1()
   // switch on shooting pin cam 1
 
   Pin_Cam1_shoot(on);
-  
+
  if (sensorConf == sensor_off)   // switch on shooting pin cam 2 if set as cam 2
   {
   Pin_Cam2_shoot(on);
-  }     
+  }
 
   cam_Release = shooting;
 
@@ -2851,6 +2902,7 @@ void releaseCamera_1()
       bulbReleasedAt = millis();
     }
   }
+#ifdef sensor
  }
 #else // sensor
   if (releaseTime < 0.2) {
@@ -2871,8 +2923,8 @@ void releaseCamera_1()
   // switch on shooting pin cam 1 and 2
   Pin_Cam1_shoot(on);
   Pin_Cam2_shoot(on);
-  
-      
+
+
   cam_Release = shooting;
 
   // long trigger in Bulb-Mode for longer exposures
@@ -2883,7 +2935,8 @@ void releaseCamera_1()
       bulbReleasedAt = millis();
     }
   }
-#endif  // sensor  
+#endif  // sensor
+  }
 }
 void EaseRamp() {
 //  int Dist_Motor;
@@ -2909,7 +2962,7 @@ void EaseRamp() {
         EaseRamping = EaseRampingDn;
       }
     }
-    
+
     if (EaseRamping == EaseRampingDn) {                               // Ease Ramping activ
       interval -= EaseRampInc;
       EaseStepsDn -= 1;
@@ -2918,9 +2971,9 @@ void EaseRamp() {
         interval = intervalBeforeEase;
       }
     }
-//Serial.println(interval);    
+//Serial.println(interval);
   }
- } 
+ }
 
 
 
@@ -2928,8 +2981,12 @@ void EaseRamp() {
   Will be called by the loop and check if a bulb exposure has to end. If so, it will stop the exposure.
 */
 void possiblyEndLongExposure() {
-  if ( ( bulbReleasedAt != 0 ) && ( millis() >= ( bulbReleasedAt + releaseTime * 1000 ) ) ) {
-    bulbReleasedAt = 0;
+  if (irRemoteMode == on && releaseTime > 1) {
+    // IR mode handles this in the main loop
+  } else {
+    if ( ( bulbReleasedAt != 0 ) && ( millis() >= ( bulbReleasedAt + releaseTime * 1000 ) ) ) {
+      bulbReleasedAt = 0;
+    }
   }
 
   if ( currentMenu == SCR_SINGLE ) {
@@ -3070,7 +3127,7 @@ else
     switch (bulbTimeCursor) {
 
       case bulbTimeCursorRdy:
-    
+
         lcd.print(F( "   Start>"));
         break;
 
@@ -3127,9 +3184,9 @@ case MODE_SETUP:
     case MODE_SETUP:
       lcd.print(F( "Setup           " ));
       break;
-  }  
+  }
  }
-} 
+}
 #else
 void printModeMenu() {
 
@@ -3152,7 +3209,7 @@ case MODE_SETUP:
       break;
   }
 }
-#endif 
+#endif
 
 /**
    Configure no of shots - 0 means infinity
@@ -3186,7 +3243,7 @@ void printRunningScreen() {
     // print remaining time
     unsigned long remainingSecs = (maxNoOfShots - imageCount) * interval;
 
-#ifdef sensor 
+#ifdef sensor
     if (sensorConf == sensor_off)
     {
     lcd.print( "T-");
@@ -3218,7 +3275,7 @@ void printRunningScreen() {
     lcd.print( ":" );
     lcd.print( fillZero( ( remainingSecs / 60 ) % 60 ) );
 #endif
- 
+
   }
 
 
@@ -3230,16 +3287,16 @@ void printRunningScreen() {
    if ((sensorConf == sensor_onH)or (sensorConf == sensor_onL))
    {
      if (digitalRead(Cam2_focus) == 1)
-     { 
+     {
       lcd.write(byte(4));
      }
      else
      {
-      lcd.print ("_");    
+      lcd.print ("_");
      }
    }
    else
-   { 
+   {
 #endif //sensor
 
     if (EaseRamping > EaseRampingOff) {         // Ease RampingUp activ
@@ -3334,14 +3391,14 @@ void printSingleScreen() {
   lcd.setCursor(0, 0);
 
 #ifdef sensor
-  if ( releaseTime < 1 ) 
+  if ( releaseTime < 1 )
   {
   if (sensorConf > sensor_off)
   {
     lcd.print(F( "Event Singl.Exp."));
   }
   else
-  { 
+  {
     lcd.print(F( "Single Exposure "));
   }
     lcd.setCursor(0, 1);
@@ -3357,14 +3414,14 @@ void printSingleScreen() {
         }
         else
         {
-        lcd.print("_");  
-        }       
+        lcd.print("_");
+        }
       }
       else
       {
         lcd.print(F( "Fire>"));
       }
-  }    
+  }
 #else
   if ( releaseTime < 1 ) {
 
@@ -3375,9 +3432,9 @@ void printSingleScreen() {
     lcd.setCursor(11, 1);
     lcd.print( "Fire>");
    }
-#endif  //sensor   
-   
-   else 
+#endif  //sensor
+
+   else
    {
 #ifdef sensor
       if (sensorConf > sensor_off)
@@ -3389,7 +3446,7 @@ void printSingleScreen() {
       lcd.print(F( "Bulb Exposure   "));
       }
 #else
- 
+
     lcd.print(F( "Bulb Exposure   "));
 #endif
     lcd.setCursor(0, 1);
@@ -3404,9 +3461,9 @@ void printSingleScreen() {
 //      int secs = ( (int)releaseTime ) % 60;
 //      String sHours = fillZero( hours );
 //      String sMinutes = fillZero( minutes );
-//      String sSecs = fillZero( secs );      
+//      String sSecs = fillZero( secs );
     if (( bulbReleasedAt == 0 )and (focus == 0)) { // if not shooting
-     
+
 //      int hours = (int)releaseTime / 60 / 60;
 //      int minutes = ( (int)releaseTime / 60 ) % 60;
 //      int secs = ( (int)releaseTime ) % 60;
@@ -3430,7 +3487,7 @@ prepPrintTime(releaseTime);
 
    if (focus == 1)
    {
-      
+
 //      int hours = (int)releaseTime / 60 / 60;
 //      int minutes = ( (int)releaseTime / 60 ) % 60;
 //      int secs = ( (int)releaseTime ) % 60;
@@ -3439,7 +3496,7 @@ prepPrintTime(releaseTime);
 //      String bSecs = fillZero( secs );
 
     lcd.setCursor(0, 1);
-    lcd.print("< Stop  "); 
+    lcd.print("< Stop  ");
 
 prepPrintTime(releaseTime);
     lcd.setCursor(7, 1);
@@ -3454,7 +3511,7 @@ prepPrintTime(releaseTime);
 //      lcd.print( " " );
 
 
-  
+
 //    lcd.setCursor(8, 1);
 //    lcd.print( bHours );
 //    lcd.setCursor(10, 1);
@@ -3486,15 +3543,15 @@ prepPrintTime(releaseTime);
         }
         else
         {
-        lcd.print("_");  
-        }       
+        lcd.print("_");
+        }
       }
       else
       {
         lcd.print(F( " Fire>"));
-      }        
-      break;       
-#else        
+      }
+      break;
+#else
         lcd.print(F( " Fire>"));
         break;
 #endif
@@ -3511,20 +3568,20 @@ prepPrintTime(releaseTime);
         break;
     }
    }
-  } 
+  }
   else { // running
 
     //    bulbReleasedAt = 0;
     unsigned long runningTime = ( bulbReleasedAt + releaseTime * 1000 ) - millis();
     //    unsigned long runningTime = (releaseTime * 1000 );
- 
+
      unsigned long finerRunningTime = runningTime+1000;
 
      int hours = finerRunningTime / 1000 / 60 / 60;
      int minutes = (finerRunningTime / 1000 / 60) % 60;
      int secs = (finerRunningTime / 1000 ) % 60;
 
-      
+
 //      int hours = runningTime / 1000 / 60 / 60;
 //      int minutes = ( runningTime / 1000 / 60 ) % 60;
 //      int secs = ( runningTime / 1000 ) % 60;
@@ -3534,7 +3591,7 @@ prepPrintTime(releaseTime);
 
 
     lcd.setCursor(0, 1);
-    lcd.print(F("< Stop ")); 
+    lcd.print(F("< Stop "));
 
     lcd.setCursor(8, 1);
     lcd.print( sHours );
@@ -3548,7 +3605,7 @@ prepPrintTime(releaseTime);
     lcd.print( sSecs );
     lcd.setCursor(7, 1);
     lcd.write(byte(2));           // Shooting symbol
- 
+
    }
   }
 }
@@ -3612,11 +3669,11 @@ void print_DELAY_COUNT_Screen() {
 //  lcd.setCursor(0, 0);
 
   if (mode == MODE_SINGLE)
-  { 
+  {
   lcd.print(F( "Exposure in...  "));
   }
   else
-  {  
+  {
   lcd.print(F( "TL starts in... "));
   }
   unsigned long finerDelayTime = delayTimeDC+1000;
@@ -3742,11 +3799,11 @@ void print_SU_SENSOR_Screen() {
   lcd.setCursor(13, 1);
   if (sensorConf == sensor_onH)
   {
-  lcd.write(byte(5)); 
+  lcd.write(byte(5));
   }
   else
   {
-  lcd.write(byte(6)); 
+  lcd.write(byte(6));
   }
    lcd.setCursor(15, 1);
     if (digitalRead(Cam2_focus) == 1)
@@ -3755,7 +3812,7 @@ void print_SU_SENSOR_Screen() {
     }
     else
     {
-    lcd.print("_");  
+    lcd.print("_");
     }
   }
   else
@@ -3771,7 +3828,7 @@ void print_SU_SENSOR_Screen() {
 void updateTime() {
 
 
-    unsigned long finerRunningTime = runningTime + (millis() - previousMillis);   
+    unsigned long finerRunningTime = runningTime + (millis() - previousMillis);
 
   if ( isRunning ) {
 
@@ -3814,18 +3871,18 @@ void updateTime() {
 void printSettingsMenu() {
 
   lcd.setCursor(0, 0);
-  if (maxNoOfShots > 0) { 
-    if (settingsSel == 1) { 
+  if (maxNoOfShots > 0) {
+    if (settingsSel == 1) {
     lcd.print(">Pause          ");
     lcd.setCursor(0, 1);
     lcd.print(" Ramp Interval  ");
     }
-    if (settingsSel == 2) { 
+    if (settingsSel == 2) {
     lcd.print(">Ramp Interval  ");
     lcd.setCursor(0, 1);
     lcd.print(" No of shots inc");
     }
-    if (settingsSel == 3) { 
+    if (settingsSel == 3) {
     lcd.print(" Ramp Interval  ");
     lcd.setCursor(0, 1);
     lcd.print(">No of shots inc");
@@ -3893,6 +3950,17 @@ void printEaseRampMenu() {
 
 }
 
+void printIrModeMenu() {
+  lcd.setCursor(0, 0);
+  lcd.print(F("IR Remote       "));
+  lcd.setCursor(0, 1);
+  if (irRemoteMode == on) {
+    lcd.print(F("On              "));
+  } else {
+    lcd.print(F("Off             "));
+  }
+}
+
 
 void printChgNofShotsMenu() {
 
@@ -3916,45 +3984,45 @@ ISR(TIMER2_OVF_vect)
     if (( currentMenu == SCR_SINGLE ) and ( bulbTimeCursor == bulbTimeCursorRdy))
     {
       if(delayMS_Trigger == 0)
-      { 
+      {
       sensorStat = digitalRead(Cam2_focus);
         if (sensorStat != sensorLastStat)
         {
-       sensorLastStat = sensorStat; 
-    
-          if ((sensorConf == sensor_onH) and (sensorStat == 1)) 
+       sensorLastStat = sensorStat;
+
+          if ((sensorConf == sensor_onH) and (sensorStat == 1))
           {
            delayMS_CD = delayMS;
            delayMS_Trigger = 1;
           }
-          if ((sensorConf == sensor_onL) and (sensorStat == 0)) 
-          { 
+          if ((sensorConf == sensor_onL) and (sensorStat == 0))
+          {
            delayMS_CD = delayMS;
            delayMS_Trigger = 1;
-          } 
+          }
         }
       }
       if (delayMS_Trigger == 1)
       {
         if (delayMS_CD > 0)
         {
-        delayMS_CD -=1;    
+        delayMS_CD -=1;
         }
         else
         {
-          if ((sensorConf == sensor_onH) and (sensorStat == 1)) 
-          { 
+          if ((sensorConf == sensor_onH) and (sensorStat == 1))
+          {
             Pin_Cam1_shoot(on);
             Pin_Cam1_focus(on);
           }
-          if ((sensorConf == sensor_onL) and (sensorStat == 0)) 
-          { 
+          if ((sensorConf == sensor_onL) and (sensorStat == 0))
+          {
             Pin_Cam1_shoot(on);
             Pin_Cam1_focus(on);
          }
        }
       }
-    }     
+    }
 #endif //sensor
 
   if (exposureTime > 0) {
@@ -3977,11 +4045,11 @@ ISR(TIMER2_OVF_vect)
   }
   if (klpTimer == klp1)
   {
-     keylongpress = keyspeed2;           
+     keylongpress = keyspeed2;
   }
   if (klpTimer == klp2)
   {
-     keylongpress = keyspeed3;           
+     keylongpress = keyspeed3;
   }
 }
 
@@ -3999,7 +4067,7 @@ void Pin_Cam1_shoot (byte state)
     #endif
   }
   else
-  { 
+  {
   // switch off cam1 shoot pin
    #ifdef Cam1_ext_HW
      digitalWrite(Cam1_shoot, LOW);    // end of exposure cam 1
@@ -4007,7 +4075,7 @@ void Pin_Cam1_shoot (byte state)
 
    #ifdef Cam1_int_HW
     pinMode(Cam1_shoot, INPUT_PULLUP);          // Set port to input = high
-   #endif    
+   #endif
   }
 }
 
@@ -4025,7 +4093,7 @@ void Pin_Cam2_shoot (byte state)
     #endif
   }
   else
-  { 
+  {
   // switch off cam2 shoot pin
    #ifdef Cam2_ext_HW
      digitalWrite(Cam2_shoot, LOW);    // end of exposure cam 1
@@ -4033,7 +4101,7 @@ void Pin_Cam2_shoot (byte state)
 
    #ifdef Cam2_int_HW
     pinMode(Cam2_shoot, INPUT_PULLUP);          // Set port to input = high
-   #endif    
+   #endif
   }
 }
 
@@ -4052,14 +4120,14 @@ void Pin_Cam1_focus (byte state)
    #endif
   }
   else
-  { 
+  {
   // switch off cam1 focus pin
   #ifdef Cam1_ext_HW
     digitalWrite(Cam1_focus, LOW);
-  #endif  
+  #endif
   #ifdef Cam1_int_HW
     pinMode(Cam1_focus, INPUT_PULLUP);          // Set port to input = high
-  #endif   
+  #endif
   }
 }
 
@@ -4078,14 +4146,14 @@ void Pin_Cam2_focus (byte state)
    #endif
   }
   else
-  { 
+  {
   // switch off cam2 focus pin
   #ifdef Cam2_ext_HW
       digitalWrite(Cam2_focus, LOW);
-  #endif  
+  #endif
   #ifdef Cam2_int_HW
         pinMode(Cam2_focus, INPUT_PULLUP);          // Set port to input = high
-  #endif   
+  #endif
   }
 }
 
@@ -4138,4 +4206,4 @@ void prepPrintTime(float pTime)
       lcd.print((char)34);
       lcd.print( " " );
 
-} 
+}
