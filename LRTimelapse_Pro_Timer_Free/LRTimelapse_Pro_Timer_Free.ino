@@ -33,6 +33,8 @@ const int BACK_LIGHT  = 10;
 const float RELEASE_TIME_DEFAULT = 0.1;			// default shutter release time for camera
 const float MIN_DARK_TIME = 0.5;
 
+const int IR_PULSE_TICKS = 10;      // 10 * 10ms-ticks = 100ms pulse for IR remote
+
 const int keyRepeatRate = 100;			// when held, key repeats 1000 / keyRepeatRate times per second
 
 const int decoupleTime = 1000;      // time in milliseconds to wait before doing a single bulb exposure
@@ -67,6 +69,7 @@ boolean backLight = HIGH;				// The current settings for the backlight
 const int SCR_INTERVAL = 0;				// menu workflow constants
 const int SCR_SHOTS = 1;
 const int SCR_MODE = 9;
+const int SCR_BULB_TYPE = 13;
 const int SCR_EXPOSURE = 10;
 const int SCR_RUNNING = 2;
 const int SCR_CONFIRM_END = 3;
@@ -83,10 +86,14 @@ const int SCR_SINGLE = 11;
 const int MODE_M = 0;
 const int MODE_BULB = 1;
 
+const int BULB_NORMAL = 0;
+const int BULB_IR = 1;
+
 
 int currentMenu = 0;					// the currently selected menu
 int settingsSel = 1;					// the currently selected settings option
 int mode = MODE_M;            // mode: M or Bulb
+int bulbType = BULB_NORMAL;   // bulb mode type
 
 const float cMinInterval = 0.2;
 const float cMaxInterval = 999;  // no intervals longer as 999secs - those would scramble the display
@@ -393,7 +400,11 @@ void processKey() {
 
     case SCR_MODE:
       if ( localKey == RIGHT ) {
-        currentMenu = SCR_SHOTS;
+        if ( mode == MODE_M ) {
+          currentMenu = SCR_SHOTS;
+        } else {
+          currentMenu = SCR_BULB_TYPE;
+        }
       }
       else if ( localKey == LEFT ) {
         currentMenu = SCR_INTERVAL;
@@ -405,6 +416,22 @@ void processKey() {
           mode = MODE_M;
           releaseTime = RELEASE_TIME_DEFAULT;   // when switching to M-Mode, set the shortest shutter release time.
         }
+      }
+      break;
+
+    case SCR_BULB_TYPE:
+      if ( ( localKey == UP ) || ( localKey == DOWN ) ) {
+        if ( bulbType == BULB_NORMAL ) {
+          bulbType = BULB_IR;
+        } else {
+          bulbType = BULB_NORMAL;
+        }
+      }
+      else if ( localKey == LEFT ) {
+        currentMenu = SCR_MODE;
+      }
+      else if ( localKey == RIGHT ) {
+        currentMenu = SCR_SHOTS;
       }
       break;
 
@@ -754,6 +781,10 @@ void printScreen() {
       printModeMenu();
       break;
 
+    case SCR_BULB_TYPE:
+      printBulbTypeMenu();
+      break;
+
     case SCR_SHOTS:
       printNoOfShotsMenu();
       break;
@@ -848,6 +879,15 @@ void possiblyRampInterval() {
 }
 
 /**
+   Send a short pulse for IR remote control
+*/
+void sendIRPulse() {
+  digitalWrite(12, HIGH);
+  exposureTime = IR_PULSE_TICKS;
+  cam_Release = shooting;
+}
+
+/**
    Actually release the camera
 */
 void releaseCamera() {
@@ -877,16 +917,18 @@ void releaseCamera() {
 //    }
 
   } else { // releaseTime > 1 sec
-
-    // long trigger in Bulb-Mode for longer exposures
     if ( bulbReleasedAt == 0 ) {
       bulbReleasedAt = millis();
-// HV changes für Interrupt Cam release and Display indicator handling
       lcd.setCursor(7, 1);
       lcd.print((char)255);
-      exposureTime = releaseTime * 100;
-      cam_Release = shooting;
-      digitalWrite(12, HIGH);
+
+      if (bulbType == BULB_IR) {
+        sendIRPulse();
+      } else {
+        exposureTime = releaseTime * 100; // normal bulb exposure
+        cam_Release = shooting;
+        digitalWrite(12, HIGH);
+      }
     }
   }
 
@@ -897,9 +939,14 @@ void releaseCamera() {
 */
 void possiblyEndLongExposure() {
   if ( ( bulbReleasedAt != 0 ) && ( millis() >= ( bulbReleasedAt + releaseTime * 1000 ) ) ) {
-    bulbReleasedAt = 0;
-// HV changes für Interrupt Cam release and Display indicator handling
-//    digitalWrite(12, LOW);
+    if (bulbType == BULB_IR) {
+      // Send closing pulse for IR
+      sendIRPulse();
+      bulbReleasedAt = 0;
+    } else {
+      bulbReleasedAt = 0;
+      // For normal bulb, the exposure is ended by the interrupt that was set in releaseCamera
+    }
   }
 
 //  if ( currentMenu == SCR_RUNNING ) { // display exposure indicator on running screen only
@@ -979,6 +1026,21 @@ void printModeMenu() {
     lcd.print( "M (Default)     " );
   } else {
     lcd.print( "Bulb (Astro)    " );
+  }
+}
+
+/**
+   Configure Bulb Type setting
+*/
+void printBulbTypeMenu() {
+
+  lcd.setCursor(0, 0);
+  lcd.print("Bulb Mode Type");
+  lcd.setCursor(0, 1);
+  if ( bulbType == BULB_NORMAL ) {
+    lcd.print( "Normal          " );
+  } else {
+    lcd.print( "IR Remote       " );
   }
 }
 
