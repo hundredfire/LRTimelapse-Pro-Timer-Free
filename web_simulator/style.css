@@ -1,0 +1,93 @@
+body {
+    font-family: sans-serif;
+    background-color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+#timer-body {
+    background-color: #4a4a4a;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    width: 320px;
+}
+
+#lcd-screen {
+    background-color: #9ab87a;
+    border: 2px solid #333;
+    border-radius: 5px;
+    padding: 0 5px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.1em;
+    height: 50px;
+    color: #333;
+    overflow: hidden;
+    white-space: pre;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#lcd-row1, #lcd-row2 {
+    height: 50%;
+    display: flex;
+    align-items: center;
+}
+
+#keypad {
+    margin-top: 20px;
+    display: grid;
+    grid-template-areas:
+        "select up up"
+        "select left right"
+        "select down down";
+    grid-gap: 5px;
+}
+
+#keypad button {
+    background-color: #7d7d7d;
+    color: white;
+    border: 1px solid #000;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#keypad button:hover {
+    background-color: #8e8e8e;
+}
+
+#keypad #btn-select { grid-area: select; }
+#keypad #btn-up { grid-area: up; }
+#keypad #btn-down { grid-area: down; }
+#keypad #btn-left { grid-area: left; }
+#keypad #btn-right { grid-area: right; }
+
+
+#shutter-indicator {
+    margin-left: 20px;
+    width: 100px;
+    height: 100px;
+    background-color: #ccc;
+    border: 2px solid #999;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2em;
+    color: #666;
+    transition: all 0.1s;
+}
+
+#shutter-indicator.triggered {
+    background-color: #ff4500;
+    color: white;
+    border-color: #cc3700;
+    transform: scale(1.05);
+}
