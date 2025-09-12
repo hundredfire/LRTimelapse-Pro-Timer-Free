@@ -619,12 +619,13 @@ void loop() {
   }
 
   if (irCloseShutterAt > 0 && millis() >= irCloseShutterAt) {
-    // Send the closing pulse for IR mode
+    // This is the end of a bulb exposure in IR mode.
+    // We need to send a second 100ms pulse to the IR remote to close the shutter.
     Pin_Cam1_shoot(on);
-    exposureTime = 100; // 100ms pulse
-    cam_Release = shooting;
-    irCloseShutterAt = 0; // Reset the timer
-    bulbReleasedAt = 0;
+    cam_Release = shooting; // The main loop will turn the pin off when exposureTime reaches 0.
+    exposureTime = 100; // The pulse will be 100ms long.
+    irCloseShutterAt = 0; // Reset the timer for this pulse.
+    bulbReleasedAt = 0;   // Reset for display purposes.
   }
 
   if ( isRunning ) // release camera, do Ramping if running
@@ -2857,9 +2858,13 @@ imageCount++;
 void releaseCamera_1()
 {
   if (irRemoteMode == on && releaseTime > 1) {
+    // This is the start of a bulb exposure in IR mode.
+    // We need to send a 100ms pulse to the IR remote to open the shutter.
     Pin_Cam1_shoot(on);
-    exposureTime = 100;
-    cam_Release = shooting;
+    cam_Release = shooting; // The main loop will turn the pin off when exposureTime reaches 0.
+    exposureTime = 100;     // The pulse will be 100ms long.
+
+    // Set a timer that will trigger the closing pulse after 'releaseTime' seconds.
     irCloseShutterAt = millis() + (unsigned long)(releaseTime * 1000);
     if (currentMenu == SCR_RUNNING || currentMenu == SCR_SINGLE) {
       lcd.setCursor(7, 1);
