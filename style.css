@@ -1,0 +1,92 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f0f0f0;
+}
+
+.simulator {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background-color: #fff;
+}
+
+.lcd-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.lcd-screen {
+    width: 320px;
+    height: 64px;
+    background-color: #154677;
+    border: 5px solid #333;
+    border-radius: 5px;
+    padding: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    color: white;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.lcd-row {
+    height: 50%;
+    white-space: pre;
+}
+
+.keypad {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.key {
+    width: 80px;
+    height: 40px;
+    border: none;
+    border-radius: 5px;
+    background-color: #4a90e2;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#key-right {
+    grid-column: 3;
+    grid-row: 2;
+}
+#key-left {
+    grid-column: 1;
+    grid-row: 2;
+}
+#key-up {
+    grid-column: 2;
+    grid-row: 1;
+}
+#key-down {
+    grid-column: 2;
+    grid-row: 2;
+}
+#key-select {
+    grid-column: 1;
+}
+
+
+.camera-indicator-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.camera-indicator {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #333;
+    background-color: #ccc;
+}

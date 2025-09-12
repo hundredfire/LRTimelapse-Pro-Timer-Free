@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LRTimelapse Pro-Timer Simulator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>LRTimelapse Pro-Timer Simulator</h1>
+    <div class="simulator">
+        <div class="lcd-container">
+            <div class="lcd-screen">
+                <div class="lcd-row" id="lcd-row-1"></div>
+                <div class="lcd-row" id="lcd-row-2"></div>
+            </div>
+            <div class="keypad">
+                <button class="key" id="key-up">Up</button>
+                <button class="key" id="key-down">Down</button>
+                <button class="key" id="key-left">Left</button>
+                <button class="key" id="key-right">Right</button>
+                <button class="key" id="key-select">Select</button>
+            </div>
+        </div>
+        <div class="camera-indicator-container">
+            <h2>Camera Trigger</h2>
+            <div class="camera-indicator" id="camera-indicator"></div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
