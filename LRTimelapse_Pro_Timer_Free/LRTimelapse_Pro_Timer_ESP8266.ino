@@ -3974,8 +3974,7 @@ void printChgNofShotsMenu() {
 }
 
 
-void IRAM_ATTR onTimer() {
-  portENTER_CRITICAL_ISR(&timerMux);
+void onTimer() {
 #ifdef sensor
 
     if (( currentMenu == SCR_SINGLE ) and ( bulbTimeCursor == bulbTimeCursorRdy))
@@ -4048,7 +4047,6 @@ void IRAM_ATTR onTimer() {
   {
      keylongpress = keyspeed3;
   }
-  portEXIT_CRITICAL_ISR(&timerMux);
 }
 
 void Pin_Cam1_shoot (byte state)
