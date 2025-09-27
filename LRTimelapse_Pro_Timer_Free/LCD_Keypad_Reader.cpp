@@ -44,9 +44,9 @@ static int DEFAULT_KEY_PIN = 0;
   static int NOKEY_ARV = 1023;
 #endif
 
-LCD_Keypad_Reader::LCD_Keypad_Reader()
+LCD_Keypad_Reader::LCD_Keypad_Reader(int keyPin)
 {
-  _keyPin = DEFAULT_KEY_PIN;
+  _keyPin = keyPin;
   _threshold = DEFAULT_THRESHOLD;
   _curInput = NO_KEY;
   _curKey = NO_KEY;

@@ -24,7 +24,7 @@
 class LCD_Keypad_Reader
 {
   public:
-    LCD_Keypad_Reader();
+    LCD_Keypad_Reader(int keyPin);
     int getKey();
     int categorizeKey(int);
     int RepeatRate;
