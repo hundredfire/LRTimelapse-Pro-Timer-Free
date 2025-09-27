@@ -89,8 +89,8 @@ const int KEYPAD_PIN = A0;
 LCD_Keypad_Reader keypad(KEYPAD_PIN);
 
 // LCD pins for Wemos D1 Mini
-// RS -> D8, EN -> D7, D4 -> D6, D5 -> D5, D6 -> D4, D7 -> D3
-LiquidCrystal lcd(D8, D7, D6, D5, D4, D3);
+// RS -> D8, EN -> D9, D4 -> D4, D5 -> D5, D6 -> D6, D7 -> D7
+LiquidCrystal lcd(D8, D9, D4, D5, D6, D7);
 
 
 #define sensor     // enable event triggerd timelapse
@@ -411,7 +411,7 @@ void setup() {
     digitalWrite(Onboard_LED, LOW); // Turn Onboard LED OFF. it only consumes battery power ;-)
 
     pinMode(BACK_LIGHT, OUTPUT);
-    digitalWrite(BACK_LIGHT, LOW); // First turn backlight off.
+    digitalWrite(BACK_LIGHT, HIGH); // Turn backlight on.
 
     Serial.begin(9600);
 
@@ -426,12 +426,11 @@ void setup() {
     lcd.createChar(6, ChrLow);
 #endif
 
-    digitalWrite(BACK_LIGHT, HIGH); // Turn backlight on.
-    // inititialize LCD
+    // initialize LCD
     lcd.begin(16, 2);
     lcd.clear();
     lcd.setCursor(0, 0);
-    // print welcome screen))
+    // print welcome screen
     lcd.print(F("LRTimelapse.com"));
     lcd.setCursor(0, 1);
     lcd.print(CAPTION);
