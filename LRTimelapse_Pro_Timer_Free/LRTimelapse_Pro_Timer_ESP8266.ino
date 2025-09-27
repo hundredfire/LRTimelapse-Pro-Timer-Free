@@ -209,8 +209,10 @@ const byte on = 1;
 const byte off = 0;
 
 // DPH option is not applicable to ESP8266, pins are set for standard wiring
-const byte Cam2_shoot = TX;
-const byte Cam2_focus = RX;
+// Note: GPIO1 (TX) and GPIO3 (RX) are used for Camera 2.
+// The Serial Monitor cannot be used if Camera 2 is connected.
+const byte Cam2_shoot = 1; // GPIO1 / TX
+const byte Cam2_focus = 3; // GPIO3 / RX
 
 const float RELEASE_TIME_DEFAULT = 0.1;			// default shutter release time for camera
 
